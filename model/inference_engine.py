@@ -17,9 +17,12 @@ class WW2InferenceEngine:
         # AxisVictory = 1 (win) is index 1
         return result.values[1]
 
+    # model/inference_engine.py
     def run_counterfactual(self, evidence):
+        # Ensure we never condition on the outcome node 'AxisVictory'
+        evidence_clean = {k: v for k, v in (evidence or {}).items() if k != "AxisVictory"}
         result = self.infer.query(
             variables=['AxisVictory'],
-            evidence=evidence
+            evidence=evidence_clean
         )
         return result.values[1]
