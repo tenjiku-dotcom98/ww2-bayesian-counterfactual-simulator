@@ -1,92 +1,91 @@
 import streamlit as st
-from game.turn_manager import TurnManager
-from game.decisions import DECISION_OPTIONS
+from model.inference_engine import WW2InferenceEngine
+from utils.config import NODES
+from analysis.influence import compute_node_influence
 
 st.set_page_config(layout="wide")
 
-st.title("⚔️ WWII Strategic Counterfactual Simulator")
+st.title("🧠 WWII Causal Intervention Lab")
 
-# ----------------------------
-# ROLE SELECTION
-# ----------------------------
+# -----------------------------------
+# Initialize Bayesian Engine
+# -----------------------------------
 
-if "game" not in st.session_state:
-    role = st.selectbox(
-        "Choose Your Role",
-        ["Germany", "Allies", "Japan", "USSR"]
+engine = WW2InferenceEngine()
+
+# -----------------------------------
+# Sidebar - Interventions
+# -----------------------------------
+
+st.sidebar.header("⚙️ Interventions")
+
+interventions = {}
+
+for node in NODES:
+    if node == "AxisVictory":
+        continue
+
+    choice = st.sidebar.radio(
+        label=node,
+        options=["No Intervention", "Force 0", "Force 1"],
+        key=f"intervention_{node}"
     )
 
-    if st.button("Start Simulation"):
-        st.session_state.game = TurnManager(role)
-        st.rerun()
+    if choice == "Force 0":
+        interventions[node] = 0
+    elif choice == "Force 1":
+        interventions[node] = 1
 
-else:
-    game = st.session_state.game
+# -----------------------------------
+# Outcome Calculation
+# -----------------------------------
 
-    col1, col2 = st.columns(2)
+baseline = engine.get_baseline()
+counter = engine.run_counterfactual(interventions)
+delta = counter - baseline
 
-    # ----------------------------
-    # LEFT PANEL – PLAYER DECISIONS
-    # ----------------------------
+col1, col2 = st.columns(2)
 
-    with col1:
-        st.subheader(f"🎖 Role: {game.world.role}")
-        st.write(f"Turn: {game.world.turn}")
+with col1:
+    st.subheader("📊 Outcome")
+    st.metric("Baseline Axis Victory", f"{baseline:.3f}")
+    st.metric("Intervention Axis Victory", f"{counter:.3f}")
+    st.metric("Δ Change", f"{delta:.3f}")
 
-        available = game.get_available_player_decisions()
+with col2:
+    st.subheader("Active Interventions")
+    if interventions:
+        st.json(interventions)
+    else:
+        st.write("None")
 
-        if available:
-            st.subheader("Available Decisions")
+# -----------------------------------
+# Posterior Cascade View
+# -----------------------------------
 
-            selected_node = st.selectbox(
-                "Choose Decision",
-                available
-            )
+st.divider()
+st.subheader("🔁 Posterior Cascade")
 
-            choice = st.radio(
-                "Choose Action",
-                options=list(DECISION_OPTIONS[selected_node].keys()),
-                format_func=lambda x: DECISION_OPTIONS[selected_node][x]
-            )
+for node in NODES:
+    if node == "AxisVictory":
+        continue
 
-            if st.button("Execute Decision"):
-                game.player_move(selected_node, choice)
-                st.rerun()
+    result = engine.infer.query(
+        variables=[node],
+        evidence=interventions
+    )
 
-        else:
-            st.success("No more decisions available.")
+    prob = result.values[1]
+    st.write(f"{node}: {prob:.3f}")
 
-    # ----------------------------
-    # RIGHT PANEL – WORLD STATE
-    # ----------------------------
+# -----------------------------------
+# Influence Ranking
+# -----------------------------------
 
-    with col2:
-        st.subheader("🌍 World State")
+st.divider()
+st.subheader("📈 Node Influence Ranking")
 
-        axis_prob = game.get_axis_victory_probability()
+ranked, scores = compute_node_influence()
 
-        st.metric(
-            label="Axis Victory Probability",
-            value=f"{axis_prob:.3f}"
-        )
-
-        st.subheader("Decision History")
-
-        for event in game.world.history:
-            actor = event["actor"]
-            node = event["node"]
-            value = event["value"]
-
-            st.write(
-                f"Turn {event['turn']} | {actor} → {node} = {value}"
-            )
-
-    # ----------------------------
-    # RESET BUTTON
-    # ----------------------------
-
-    st.divider()
-
-    if st.button("Reset Simulation"):
-        del st.session_state.game
-        st.rerun()
+for node, value in ranked:
+    st.write(f"{node}: {value:.4f}")
