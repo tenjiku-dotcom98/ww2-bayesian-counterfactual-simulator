@@ -2,7 +2,7 @@ import streamlit as st
 from model.inference_engine import WW2InferenceEngine
 from utils.config import NODES
 from analysis.influence import compute_node_influence
-
+from visualization.causal_graph import plot_causal_graph
 st.set_page_config(layout="wide")
 
 st.title("WWII Causal Intervention Lab")
@@ -107,3 +107,9 @@ ranked, scores = compute_node_influence()
 
 for node, value in ranked:
     st.write(f"{node}: {value:.4f}")
+
+st.divider()
+st.subheader("Causal Graph Structure")
+
+graph_fig = plot_causal_graph(engine.model)
+st.plotly_chart(graph_fig, width="stretch")
