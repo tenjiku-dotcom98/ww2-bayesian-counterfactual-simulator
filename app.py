@@ -5,7 +5,7 @@ from analysis.influence import compute_node_influence
 
 st.set_page_config(layout="wide")
 
-st.title("🧠 WWII Causal Intervention Lab")
+st.title("WWII Causal Intervention Lab")
 
 # -----------------------------------
 # Initialize Bayesian Engine
@@ -17,7 +17,7 @@ engine = WW2InferenceEngine()
 # Sidebar - Interventions
 # -----------------------------------
 
-st.sidebar.header("⚙️ Interventions")
+st.sidebar.header("Interventions")
 
 interventions = {}
 
@@ -41,17 +41,27 @@ for node in NODES:
 # -----------------------------------
 
 baseline = engine.get_baseline()
-counter = engine.run_counterfactual(interventions)
-delta = counter - baseline
+
+try:
+    counter = engine.run_counterfactual(interventions)
+    delta = counter - baseline
+    error_flag = False
+except Exception:
+    counter = None
+    delta = None
+    error_flag = True
 
 col1, col2 = st.columns(2)
 
 with col1:
     st.subheader("📊 Outcome")
     st.metric("Baseline Axis Victory", f"{baseline:.3f}")
-    st.metric("Intervention Axis Victory", f"{counter:.3f}")
-    st.metric("Δ Change", f"{delta:.3f}")
 
+    if error_flag:
+        st.error("Invalid intervention combination (zero-probability state).")
+    else:
+        st.metric("Intervention Axis Victory", f"{counter:.3f}")
+        st.metric("Δ Change", f"{delta:.3f}")
 with col2:
     st.subheader("Active Interventions")
     if interventions:
@@ -64,26 +74,34 @@ with col2:
 # -----------------------------------
 
 st.divider()
-st.subheader("🔁 Posterior Cascade")
+st.subheader("Posterior Cascade")
 
-for node in NODES:
-    if node == "AxisVictory":
-        continue
+if not error_flag:
+    for node in NODES:
+        if node == "AxisVictory":
+            continue
 
-    result = engine.infer.query(
-        variables=[node],
-        evidence=interventions
-    )
+        # Skip nodes already forced by intervention
+        if node in interventions:
+            st.write(f"{node}: forced → {interventions[node]}")
+            continue
 
-    prob = result.values[1]
-    st.write(f"{node}: {prob:.3f}")
+        try:
+            result = engine.infer.query(
+                variables=[node],
+                evidence=interventions
+            )
+            prob = result.values[1]
+            st.write(f"{node}: {prob:.3f}")
+        except Exception:
+            st.write(f"{node}: invalid")
 
 # -----------------------------------
 # Influence Ranking
 # -----------------------------------
 
 st.divider()
-st.subheader("📈 Node Influence Ranking")
+st.subheader("Node Influence Ranking")
 
 ranked, scores = compute_node_influence()
 
