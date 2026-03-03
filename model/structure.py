@@ -4,14 +4,26 @@ from pgmpy.models import DiscreteBayesianNetwork
 
 def build_structure():
     model = DiscreteBayesianNetwork([
-        ('PolandInvaded', 'BritainResists'),
-        ('BritainResists', 'BarbarossaLaunched'),
-        ('BarbarossaLaunched', 'USSRSurvives'),
-        ('PearlHarbor', 'USJoins'),
-        ('USJoins', 'DDaySuccess'),
-        ('BarbarossaLaunched', 'AxisVictory'),
-        ('DDaySuccess', 'AxisVictory'),
-        ('USSRSurvives', 'AxisVictory')
+        ("PolandInvaded", "FranceFalls"),
+        ("FranceFalls", "BritainResists"),
+        ("BritainResists", "AxisVictory"),
+
+        ("BarbarossaLaunched", "GermanOilCrisis"),
+        ("GermanOilCrisis", "AxisVictory"),
+
+        ("PearlHarbor", "PacificNavalSuperiority"),
+        ("PacificNavalSuperiority", "AxisVictory"),
+
+        ("USJoins", "LendLeaseActive"),
+        ("LendLeaseActive", "USSRSurvives"),
+
+        ("USJoins", "IndustrialAdvantageAllies"),
+        ("IndustrialAdvantageAllies", "DDaySuccess"),
+
+        ("NorthAfricaCampaignSuccess", "GermanOilCrisis"),
+
+        ("DDaySuccess", "AxisVictory"),
+        ("USSRSurvives", "AxisVictory"),
     ])
 
     return model
